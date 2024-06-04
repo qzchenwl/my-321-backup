@@ -1,0 +1,5 @@
+._*
+.DS_Store
+rsyncd.lock
+rsyncd.pid
+rsyncd.log

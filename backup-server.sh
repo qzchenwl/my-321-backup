@@ -11,14 +11,13 @@ cd "$SCRIPT_DIR"
 # 配置变量
 SERVICE_NAME="my-321-backup-server"
 RSYNC_CONFIG_FILE="rsyncd.conf"
-RSYNC_EXCLUDE_FILE="excludes.txt"
 SERVICE_LOG_FILE="./rsyncd.log"
 SERVICE_PID_FILE="./rsyncd.pid"
 SERVICE_SCRIPT="$0"
 
 # 启动服务
 start_service() {
-    rsync --daemon --config="$RSYNC_CONFIG_FILE" --exclude-from="$RSYNC_EXCLUDE_FILE"
+    rsync --daemon --config="$RSYNC_CONFIG_FILE"
     echo "Service started."
 }
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Usage: Display help information.
 usage() {
     echo "Usage: $0 -u [RSYNC_USER] -h [RSYNC_HOST] -f [FILE_TO_BACKUP] -m [RSYNC_MODULE] -- [RSYNC_OPTIONS]"
@@ -8,6 +10,7 @@ usage() {
     echo "  -h, --host       Rsync host."
     echo "  -f, --file       File or directory to backup."
     echo "  -m, --module     Rsync module on the server."
+    echo "  -v, --version    Versioning [yes|no], default yes."
     echo "  -n, --dry-run    Display what would happen during the sync."
     echo "  --help           Display this help and exit."
     echo
@@ -20,6 +23,7 @@ usage() {
 # Parse command line arguments before '--'
 RSYNC_OPTIONS=()
 FOUND_DOUBLE_DASH=0
+VERSION=yes
 while [[ "$#" -gt 0 ]]; do
     if [ "$1" == "--" ]; then
         FOUND_DOUBLE_DASH=1
@@ -32,6 +36,7 @@ while [[ "$#" -gt 0 ]]; do
         -h|--host) RSYNC_HOST="$2"; shift ;;
         -f|--file) FILE_TO_BACKUP="$2"; shift ;;
         -m|--module) RSYNC_MODULE="$2"; shift ;;
+        -v|--version) VERSION="$2"; shift ;;
         -n|--dry-run) DRY_RUN="yes"; ;;
         --help) usage ;;
         *) echo "Unknown parameter passed: $1"; usage ;;
@@ -64,13 +69,21 @@ if [ "$DRY_RUN" = "yes" ]; then
 fi
 
 # Construct the rsync command
-RSYNC_COMMAND="rsync -avh --info=progress2 --backup --backup-dir=/history/$(date +%Y%m%d)"
-for opt in "${RSYNC_OPTIONS[@]}"; do
-    RSYNC_COMMAND+=" $opt"
-done
-RSYNC_COMMAND+=" $FILE_TO_BACKUP $RSYNC_USER@$RSYNC_HOST::$RSYNC_MODULE/current/"
+RSYNC_COMMAND=("rsync" "-avh" "--info=progress2" "--exclude-from=$SCRIPT_DIR/excludes.txt")
 
-# Execute the rsync command
-echo "Executing: $RSYNC_COMMAND"
-eval $RSYNC_COMMAND
+if [ "$VERSION" = "yes" ]; then
+    # Append versioning options
+    RSYNC_COMMAND+=("--backup" "--backup-dir=/history/$(date +%Y%m%d)")
+fi
+
+# Append custom options from RSYNC_OPTIONS array
+for opt in "${RSYNC_OPTIONS[@]}"; do
+    RSYNC_COMMAND+=("$opt")
+done
+
+# Append source and destination
+RSYNC_COMMAND+=("$FILE_TO_BACKUP" "$RSYNC_USER@$RSYNC_HOST::$RSYNC_MODULE/current/")
+
+echo "Executing ${RSYNC_COMMAND[@]}"
+"${RSYNC_COMMAND[@]}"
 

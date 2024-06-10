@@ -1,0 +1,14 @@
++ .rsync-filter
+
+- .*
+- *.jar
+- node_modules
+- venv
+
++ Documents/
++ Documents/**
++ PycharmProjects/
++ PycharmProjects/**
+
+- *
+

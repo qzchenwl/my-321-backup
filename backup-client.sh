@@ -69,7 +69,7 @@ if [ "$DRY_RUN" = "yes" ]; then
 fi
 
 # Construct the rsync command
-RSYNC_COMMAND=("rsync" "-avh" "--info=progress2" "--exclude-from=$SCRIPT_DIR/excludes.txt")
+RSYNC_COMMAND=("rsync" "-aFvh" "--info=progress2")
 
 if [ "$VERSION" = "yes" ]; then
     # Append versioning options

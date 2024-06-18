@@ -11,6 +11,7 @@ usage() {
     echo "  -f, --file       File or directory to backup."
     echo "  -m, --module     Rsync module on the server."
     echo "  -v, --version    Versioning [yes|no], default yes."
+    echo "  -r, --restore    Restore a file or directory from the backup."
     echo "  -n, --dry-run    Display what would happen during the sync."
     echo "  --help           Display this help and exit."
     echo
@@ -24,6 +25,7 @@ usage() {
 RSYNC_OPTIONS=()
 FOUND_DOUBLE_DASH=0
 VERSION=yes
+RESTORE=no
 while [[ "$#" -gt 0 ]]; do
     if [ "$1" == "--" ]; then
         FOUND_DOUBLE_DASH=1
@@ -37,6 +39,7 @@ while [[ "$#" -gt 0 ]]; do
         -f|--file) FILE_TO_BACKUP="$2"; shift ;;
         -m|--module) RSYNC_MODULE="$2"; shift ;;
         -v|--version) VERSION="$2"; shift ;;
+        -r|--restore) RESTORE="yes"; ;;
         -n|--dry-run) DRY_RUN="yes"; ;;
         --help) usage ;;
         *) echo "Unknown parameter passed: $1"; usage ;;
@@ -60,10 +63,18 @@ export RSYNC_PASSWORD
 # Dry run message
 if [ "$DRY_RUN" = "yes" ]; then
     if [[ "$FILE_TO_BACKUP" =~ /$ ]]; then
-        echo "Dry run: $FILE_TO_BACKUP* will be backed up to $RSYNC_HOST::$RSYNC_MODULE/current/*"
+        if [ "$RESTORE" = "no" ]; then
+            echo "Dry run: $FILE_TO_BACKUP* will be backed up to $RSYNC_HOST::$RSYNC_MODULE/current/*"
+        else
+            echo "Dry run: $RSYNC_HOST::$RSYNC_MODULE/current/$FILE_TO_BACKUP* will be restored to ./$FILE_TO_BACKUP*"
+        fi
     else
         filename=$(basename "$FILE_TO_BACKUP")
-        echo "Dry run: $FILE_TO_BACKUP will be backed up to $RSYNC_HOST::$RSYNC_MODULE/current/$filename"
+        if [ "$RESTORE" = "no" ]; then
+            echo "Dry run: $FILE_TO_BACKUP will be backed up to $RSYNC_HOST::$RSYNC_MODULE/current/$filename"
+        else
+            echo "Dry run: $RSYNC_HOST::$RSYNC_MODULE/current/$FILE_TO_BACKUP will be restored to ./$FILE_TO_BACKUP"
+        fi
     fi
     exit 0
 fi
@@ -73,7 +84,11 @@ RSYNC_COMMAND=("rsync" "-aFvh" "--info=progress2")
 
 if [ "$VERSION" = "yes" ]; then
     # Append versioning options
-    RSYNC_COMMAND+=("--backup" "--backup-dir=/history/$(date +%Y%m%d)")
+    if [ "$RESTORE" = "no" ]; then
+        RSYNC_COMMAND+=("--backup" "--backup-dir=/history/$(date +%Y%m%d)")
+    else
+        RSYNC_COMMAND+=("--backup" "--suffix=.$(date +%Y%m%d)")
+    fi
 fi
 
 # Append custom options from RSYNC_OPTIONS array
@@ -82,7 +97,11 @@ for opt in "${RSYNC_OPTIONS[@]}"; do
 done
 
 # Append source and destination
-RSYNC_COMMAND+=("$FILE_TO_BACKUP" "$RSYNC_USER@$RSYNC_HOST::$RSYNC_MODULE/current/")
+if [ "$RESTORE" = "no" ]; then
+    RSYNC_COMMAND+=("$FILE_TO_BACKUP" "$RSYNC_USER@$RSYNC_HOST::$RSYNC_MODULE/current/")
+else
+    RSYNC_COMMAND+=("$RSYNC_USER@$RSYNC_HOST::$RSYNC_MODULE/current/$FILE_TO_BACKUP" "$FILE_TO_BACKUP")
+fi
 
 echo "Executing ${RSYNC_COMMAND[@]}"
 "${RSYNC_COMMAND[@]}"
